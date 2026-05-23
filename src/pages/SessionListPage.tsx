@@ -1,0 +1,721 @@
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import "./sessionlist.css";
+import { getActiveEvent } from "../api/event";
+
+interface Session {
+    id: number;
+    title: string;
+    description?: string | null;
+    location?: string | null;
+    startsAt: string;
+    endsAt?: string | null;
+}
+
+interface Hiwi {
+    id: number;
+    clothingSize: string | null;
+    user: {
+        id: number;
+        name: string;
+        email: string;
+    };
+}
+
+interface AssignedHiwi {
+    assignmentId: number;
+    sessionId: number;
+    hiwiId: number;
+    assignedAt: string;
+    hiwi: Hiwi;
+}
+
+interface AvailableHiwi {
+    id: number;
+    clothingSize: string | null;
+    user: {
+        id: number;
+        name: string;
+        email: string;
+    };
+}
+
+export default function SessionListPage() {
+    const navigate = useNavigate();
+
+    const [activeEventId, setActiveEventId] = useState<number | null>(null);
+
+    const [sessions, setSessions] = useState<Session[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [showCreateForm, setShowCreateForm] = useState(false);
+    const [newSession, setNewSession] = useState({
+        title: "",
+        description: "",
+        location: "",
+        startsAt: "",
+        endsAt: "",
+    });
+
+    const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+    const [assignedHiwis, setAssignedHiwis] = useState<AssignedHiwi[]>([]);
+    const [availableHiwis, setAvailableHiwis] = useState<AvailableHiwi[]>([]);
+    const [loadingHiwis, setLoadingHiwis] = useState(false);
+
+    const [expandedSessionId, setExpandedSessionId] = useState<number | null>(null);
+    const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
+    const [editSession, setEditSession] = useState({
+        title: "",
+        description: "",
+        location: "",
+        startsAt: "",
+        endsAt: "",
+    });
+
+    useEffect(() => {
+        init();
+    }, []);
+
+    async function init() {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            navigate("/login");
+            return;
+        }
+
+        try {
+            setLoading(true);
+            setError("");
+
+            const token = localStorage.getItem("token");
+            const headers = { Authorization: `Bearer ${token}` };
+            const ev = await getActiveEvent(headers);
+            setActiveEventId(ev.id);
+
+            await fetchSessionsForEvent(ev.id);
+        } catch (err) {
+            console.error(err);
+            setError("Aktives Event konnte nicht geladen werden.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    const fetchSessionsForEvent = async (eventId: number) => {
+        try {
+            const token = localStorage.getItem("token");
+            const res = await fetch(`/api/events/${eventId}/sessions`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (!res.ok) {
+                setError("Sessions konnten nicht geladen werden.");
+                return;
+            }
+
+            const data: Session[] = await res.json();
+            setSessions(
+                data.sort(
+                    (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()
+                )
+            );
+        } catch (err) {
+            console.error(err);
+            setError("Sessions konnten nicht geladen werden.");
+        }
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setNewSession((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleCreateSession = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!activeEventId) {
+            alert("Kein aktives Event ausgewählt.");
+            return;
+        }
+
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        if (!newSession.startsAt) {
+            alert("Startzeit ist erforderlich");
+            return;
+        }
+
+        const res = await fetch(`/api/events/${activeEventId}/sessions`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                title: newSession.title,
+                description: newSession.description || null,
+                location: newSession.location || null,
+                startsAt: new Date(newSession.startsAt).toISOString(),
+                endsAt: newSession.endsAt ? new Date(newSession.endsAt).toISOString() : null,
+            }),
+        });
+
+        if (res.ok) {
+            const created = await res.json();
+            setSessions((prev) =>
+                [...prev, created].sort(
+                    (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()
+                )
+            );
+            setShowCreateForm(false);
+            setNewSession({ title: "", description: "", location: "", startsAt: "", endsAt: "" });
+        } else {
+            const data = await res.json().catch(() => ({}));
+            alert(data.error || "Session konnte nicht erstellt werden");
+        }
+    };
+
+    const fetchHiwisForSession = async (sessionId: number) => {
+        if (!activeEventId) return;
+
+        setLoadingHiwis(true);
+        const token = localStorage.getItem("token");
+
+        try {
+            const [assignedRes, availableRes] = await Promise.all([
+                fetch(`/api/events/${activeEventId}/sessions/${sessionId}/hiwis`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                }),
+                fetch("/api/hiwis", {
+                    headers: { Authorization: `Bearer ${token}` },
+                }),
+            ]);
+
+            if (assignedRes.ok) {
+                const assigned = await assignedRes.json();
+                setAssignedHiwis(assigned);
+            }
+
+            if (availableRes.ok) {
+                const available = await availableRes.json();
+                setAvailableHiwis(available);
+            }
+        } catch (err) {
+            console.error("Failed to fetch HiWis:", err);
+        } finally {
+            setLoadingHiwis(false);
+        }
+    };
+
+    const handleManageHiwis = (sessionId: number) => {
+        if (selectedSessionId === sessionId) {
+            setSelectedSessionId(null);
+            setAssignedHiwis([]);
+            setAvailableHiwis([]);
+        } else {
+            setSelectedSessionId(sessionId);
+            fetchHiwisForSession(sessionId);
+        }
+    };
+
+    const handleSessionClick = (sessionId: number) => {
+        if (expandedSessionId === sessionId) {
+            setExpandedSessionId(null);
+            setAssignedHiwis([]);
+        } else {
+            setExpandedSessionId(sessionId);
+            fetchAssignedHiwisOnly(sessionId);
+        }
+    };
+
+    const fetchAssignedHiwisOnly = async (sessionId: number) => {
+        if (!activeEventId) return;
+
+        const token = localStorage.getItem("token");
+        try {
+            const res = await fetch(`/api/events/${activeEventId}/sessions/${sessionId}/hiwis`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+                const assigned = await res.json();
+                setAssignedHiwis(assigned);
+            }
+        } catch (err) {
+            console.error("Failed to fetch HiWis:", err);
+        }
+    };
+
+    const handleStartEdit = (session: Session) => {
+        setEditingSessionId(session.id);
+        setEditSession({
+            title: session.title,
+            description: session.description || "",
+            location: session.location || "",
+            startsAt: new Date(session.startsAt).toISOString().slice(0, 16),
+            endsAt: session.endsAt ? new Date(session.endsAt).toISOString().slice(0, 16) : "",
+        });
+    };
+
+    const handleCancelEdit = () => {
+        setEditingSessionId(null);
+        setEditSession({ title: "", description: "", location: "", startsAt: "", endsAt: "" });
+    };
+
+    const handleUpdateSession = async (e: React.FormEvent, sessionId: number) => {
+        e.preventDefault();
+
+        if (!activeEventId) {
+            alert("Kein aktives Event ausgewählt.");
+            return;
+        }
+
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        if (!editSession.startsAt) {
+            alert("Startzeit ist erforderlich");
+            return;
+        }
+
+        const res = await fetch(`/api/events/${activeEventId}/sessions/${sessionId}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                title: editSession.title,
+                description: editSession.description || null,
+                location: editSession.location || null,
+                startsAt: new Date(editSession.startsAt).toISOString(),
+                endsAt: editSession.endsAt ? new Date(editSession.endsAt).toISOString() : null,
+            }),
+        });
+
+        if (res.ok) {
+            const updated = await res.json();
+            setSessions((prev) =>
+                prev
+                    .map((s) => (s.id === sessionId ? updated : s))
+                    .sort(
+                        (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()
+                    )
+            );
+            handleCancelEdit();
+        } else {
+            const data = await res.json().catch(() => ({}));
+            alert(data.error || "Session konnte nicht aktualisiert werden");
+        }
+    };
+
+    const handleDeleteSession = async (sessionId: number) => {
+        if (!activeEventId) {
+            alert("Kein aktives Event ausgewählt.");
+            return;
+        }
+
+        if (!confirm("Möchten Sie diese Session wirklich löschen?")) return;
+
+        const token = localStorage.getItem("token");
+        const res = await fetch(`/api/events/${activeEventId}/sessions/${sessionId}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok) {
+            setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+        } else {
+            const data = await res.json().catch(() => ({}));
+            alert(data.error || "Session konnte nicht gelöscht werden");
+        }
+    };
+
+    const handleAssignHiwi = async (sessionId: number, hiwiId: number) => {
+        if (!activeEventId) return;
+
+        const token = localStorage.getItem("token");
+        const res = await fetch(`/api/events/${activeEventId}/sessions/${sessionId}/hiwis`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ hiwiId }),
+        });
+
+        if (res.ok) {
+            fetchHiwisForSession(sessionId);
+        } else {
+            const data = await res.json().catch(() => ({}));
+            alert(data.error || "HiWi konnte nicht zugewiesen werden");
+        }
+    };
+
+    const handleUnassignHiwi = async (sessionId: number, hiwiId: number) => {
+        if (!activeEventId) return;
+
+        const token = localStorage.getItem("token");
+        const res = await fetch(
+            `/api/events/${activeEventId}/sessions/${sessionId}/hiwis/${hiwiId}`,
+            {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+            }
+        );
+
+        if (res.ok) {
+            fetchHiwisForSession(sessionId);
+        } else {
+            const data = await res.json().catch(() => ({}));
+            alert(data.error || "HiWi konnte nicht entfernt werden");
+        }
+    };
+
+    return (
+        <div className="session-page">
+            <header className="session-navbar">
+                <span className="session-logo">SMP 2026</span>
+                <div className="session-nav-actions">
+                    <Link to="/ohomepage" className="session-back">
+                        ← Dashboard
+                    </Link>
+                    <Link to="/login" className="session-logout">
+                        Logout
+                    </Link>
+                </div>
+            </header>
+
+            <main className="session-container">
+                <h1>Session Verwaltung</h1>
+
+                <button
+                    className="session-create-btn"
+                    onClick={() => setShowCreateForm(!showCreateForm)}
+                    disabled={!activeEventId}
+                    title={!activeEventId ? "Kein aktives Event ausgewählt" : ""}
+                >
+                    {showCreateForm ? "− Abbrechen" : "+ Session erstellen"}
+                </button>
+
+                {showCreateForm && (
+                    <div className="session-create-wrapper">
+                        <div className="session-create-card">
+                            <h2>Neue Session erstellen</h2>
+                            <form onSubmit={handleCreateSession} className="session-form">
+                                <input
+                                    name="title"
+                                    placeholder="Titel"
+                                    value={newSession.title}
+                                    onChange={handleChange}
+                                    required
+                                />
+                                <textarea
+                                    name="description"
+                                    placeholder="Beschreibung (optional)"
+                                    value={newSession.description}
+                                    onChange={handleChange}
+                                />
+                                <input
+                                    name="location"
+                                    placeholder="Ort (optional)"
+                                    value={newSession.location}
+                                    onChange={handleChange}
+                                />
+
+                                <div className="session-form-row">
+                                    <div>
+                                        <label>Startzeit</label>
+                                        <input
+                                            type="datetime-local"
+                                            name="startsAt"
+                                            value={newSession.startsAt}
+                                            onChange={handleChange}
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label>Endzeit</label>
+                                        <input
+                                            type="datetime-local"
+                                            name="endsAt"
+                                            value={newSession.endsAt}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                </div>
+
+                                <button type="submit" className="session-save-btn">
+                                    Session speichern
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {loading && <p>Lädt...</p>}
+                {error && <p className="session-error">{error}</p>}
+
+                <div className="session-grid">
+                    {sessions.map((session) => (
+                        <div key={session.id} className="session-card">
+                            {editingSessionId === session.id ? (
+                                <form
+                                    onSubmit={(e) => handleUpdateSession(e, session.id)}
+                                    className="session-form"
+                                    style={{ marginBottom: "15px" }}
+                                >
+                                    <input
+                                        name="title"
+                                        placeholder="Titel"
+                                        value={editSession.title}
+                                        onChange={(e) => setEditSession({ ...editSession, title: e.target.value })}
+                                        required
+                                        className="form-control"
+                                    />
+                                    <textarea
+                                        name="description"
+                                        placeholder="Beschreibung (optional)"
+                                        value={editSession.description}
+                                        onChange={(e) =>
+                                            setEditSession({ ...editSession, description: e.target.value })
+                                        }
+                                        className="form-control"
+                                    />
+                                    <input
+                                        name="location"
+                                        placeholder="Ort (optional)"
+                                        value={editSession.location}
+                                        onChange={(e) =>
+                                            setEditSession({ ...editSession, location: e.target.value })
+                                        }
+                                        className="form-control"
+                                    />
+                                    <div className="session-form-row">
+                                        <div>
+                                            <label>Startzeit</label>
+                                            <input
+                                                type="datetime-local"
+                                                name="startsAt"
+                                                value={editSession.startsAt}
+                                                onChange={(e) =>
+                                                    setEditSession({ ...editSession, startsAt: e.target.value })
+                                                }
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label>Endzeit</label>
+                                            <input
+                                                type="datetime-local"
+                                                name="endsAt"
+                                                value={editSession.endsAt}
+                                                onChange={(e) =>
+                                                    setEditSession({ ...editSession, endsAt: e.target.value })
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+                                    <div style={{ display: "flex", gap: "10px" }}>
+                                        <button type="submit" className="session-save-btn">
+                                            Änderungen speichern
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleCancelEdit}
+                                            style={{
+                                                padding: "10px 20px",
+                                                backgroundColor: "#6c757d",
+                                                color: "white",
+                                                border: "none",
+                                                borderRadius: "4px",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            Abbrechen
+                                        </button>
+                                    </div>
+                                </form>
+                            ) : (
+                                <>
+                                    <div onClick={() => handleSessionClick(session.id)} style={{ cursor: "pointer" }}>
+                                        <h3>{session.title}</h3>
+                                        <p>
+                                            <strong>Start:</strong> {new Date(session.startsAt).toLocaleString()}
+                                        </p>
+                                        {session.location && (
+                                            <p>
+                                                <strong>Ort:</strong> {session.location}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div style={{ marginTop: "10px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                                        <button
+                                            onClick={() => handleStartEdit(session)}
+                                            style={{
+                                                padding: "8px 16px",
+                                                backgroundColor: "#007bff",
+                                                color: "white",
+                                                border: "none",
+                                                borderRadius: "4px",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            Session bearbeiten
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteSession(session.id)}
+                                            style={{
+                                                padding: "8px 16px",
+                                                backgroundColor: "#dc3545",
+                                                color: "white",
+                                                border: "none",
+                                                borderRadius: "4px",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            Löschen
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+
+                            {expandedSessionId === session.id && (
+                                <div style={{ marginTop: "15px", paddingTop: "15px", borderTop: "1px solid #ddd" }}>
+                                    <h4 style={{ marginBottom: "10px" }}>Zugewiesene HiWis</h4>
+                                    {assignedHiwis.length === 0 ? (
+                                        <p style={{ fontSize: "0.9rem", color: "#666" }}>Noch keine HiWis zugewiesen</p>
+                                    ) : (
+                                        <ul style={{ paddingLeft: "20px", margin: "0" }}>
+                                            {assignedHiwis.map((assigned) => (
+                                                <li key={assigned.hiwiId} style={{ fontSize: "0.9rem", marginBottom: "4px" }}>
+                                                    {assigned.hiwi.user.name} ({assigned.hiwi.user.email})
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            )}
+
+                            <button
+                                className="session-manage-hiwis-btn"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleManageHiwis(session.id);
+                                }}
+                                style={{
+                                    marginTop: "10px",
+                                    padding: "8px 12px",
+                                    backgroundColor: selectedSessionId === session.id ? "#dc3545" : "#007bff",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                {selectedSessionId === session.id ? "HiWi-Verwaltung schließen" : "HiWis verwalten"}
+                            </button>
+
+                            {selectedSessionId === session.id && (
+                                <div style={{ marginTop: "15px", padding: "10px", backgroundColor: "#f8f9fa", borderRadius: "4px" }}>
+                                    {loadingHiwis ? (
+                                        <p>HiWis werden geladen...</p>
+                                    ) : (
+                                        <>
+                                            <div style={{ marginBottom: "15px" }}>
+                                                <h4 style={{ marginBottom: "10px" }}>Zugewiesene HiWis</h4>
+                                                {assignedHiwis.length === 0 ? (
+                                                    <p>Noch keine HiWis zugewiesen.</p>
+                                                ) : (
+                                                    <div>
+                                                        {assignedHiwis.map((assigned) => (
+                                                            <div
+                                                                key={assigned.hiwiId}
+                                                                style={{
+                                                                    display: "flex",
+                                                                    justifyContent: "space-between",
+                                                                    alignItems: "center",
+                                                                    padding: "8px",
+                                                                    marginBottom: "5px",
+                                                                    backgroundColor: "white",
+                                                                    borderRadius: "4px",
+                                                                }}
+                                                            >
+                                                                <span>
+                                                                    {assigned.hiwi.user.name} ({assigned.hiwi.user.email})
+                                                                </span>
+                                                                <button
+                                                                    onClick={() => handleUnassignHiwi(session.id, assigned.hiwiId)}
+                                                                    style={{
+                                                                        padding: "4px 8px",
+                                                                        backgroundColor: "#dc3545",
+                                                                        color: "white",
+                                                                        border: "none",
+                                                                        borderRadius: "4px",
+                                                                        cursor: "pointer",
+                                                                    }}
+                                                                >
+                                                                    Entfernen
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                <h4 style={{ marginBottom: "10px" }}>Verfügbare HiWis</h4>
+                                                {availableHiwis.filter((h) => !assignedHiwis.some((a) => a.hiwiId === h.id)).length === 0 ? (
+                                                    <p>Alle HiWis sind zugewiesen oder keine HiWis verfügbar.</p>
+                                                ) : (
+                                                    <div>
+                                                        {availableHiwis
+                                                            .filter((h) => !assignedHiwis.some((a) => a.hiwiId === h.id))
+                                                            .map((hiwi) => (
+                                                                <div
+                                                                    key={hiwi.id}
+                                                                    style={{
+                                                                        display: "flex",
+                                                                        justifyContent: "space-between",
+                                                                        alignItems: "center",
+                                                                        padding: "8px",
+                                                                        marginBottom: "5px",
+                                                                        backgroundColor: "white",
+                                                                        borderRadius: "4px",
+                                                                    }}
+                                                                >
+                                                                    <span>
+                                                                        {hiwi.user.name} ({hiwi.user.email})
+                                                                    </span>
+                                                                    <button
+                                                                        onClick={() => handleAssignHiwi(session.id, hiwi.id)}
+                                                                        style={{
+                                                                            padding: "4px 8px",
+                                                                            backgroundColor: "#28a745",
+                                                                            color: "white",
+                                                                            border: "none",
+                                                                            borderRadius: "4px",
+                                                                            cursor: "pointer",
+                                                                        }}
+                                                                    >
+                                                                        Zuweisen
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+
+                {!loading && sessions.length === 0 && <p>Keine Sessions gefunden.</p>}
+            </main>
+        </div>
+    );
+}

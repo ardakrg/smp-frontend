@@ -1,0 +1,79 @@
+.ann-subtitle {
+  margin-top: 6px;
+  margin-bottom: 28px;
+  font-size: 1.1rem;
+  color: #6b7280;
+}
+
+.ann-info,
+.ann-error,
+.ann-empty {
+  padding: 14px 18px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 0.95rem;
+}
+
+.ann-info {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  color: #3730a3;
+}
+
+.ann-error {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.ann-empty {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.ann-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.ann-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 22px 26px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+  border-left: 6px solid #2563eb;
+}
+
+.ann-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ann-head h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: #111827;
+}
+
+.ann-head span {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.ann-body {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #1f2937;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+}
+
+.ann-author {
+  font-size: 0.85rem;
+  color: #6b7280;
+  text-align: right;
+}

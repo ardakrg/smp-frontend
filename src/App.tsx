@@ -1,0 +1,119 @@
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import LoginPage from "./pages/LoginPage";
+import RegistrationPage from "./pages/RegistrationPage";
+import HomePage from "./pages/HomePage";
+import AdminRegistrationsListPage from "./pages/AdminRegistrationsListPage";
+import AdminRegistrationDetailPage from "./pages/AdminRegistrationDetailPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import OHomePage from "./pages/oHomePage";
+import EventListPage from "./pages/EventListPage";
+import EventDetailPage from "./pages/EventDetailPage";
+import SessionListPage from "./pages/SessionListPage";
+import HiWiListPage from "./pages/HiwiListPage";
+import HiwiAttendancePage from "./pages/HiwiAvailabilityPage";
+import BusinessCardPage from "./pages/BusinessCardPage";
+import QuizListPage from "./pages/QuizListPage";
+import StudentHomePage from "./pages/StudentHomePage";
+import HiwiHomePage from "./pages/HiwiHomePage";
+import HiWiStatisticsPage from "./pages/HiwiStatisticsPage";
+import StudentQrPage from "./pages/StudentQrPage";
+import OrganizerAnnouncements from "./pages/OrganizerAnnouncements";
+import HiWiQrScanPage from "./pages/HiwiQrScanPage";
+import AttendanceData from "./pages/AttendanceData";
+import QuizSubmissionPage from "./pages/QuizSubmissionPage";
+import QuizResultsPage from "./pages/QuizResultsPage";
+import QuestionManagementPage from "./pages/QuestionManagementPage";
+import QuizCreationPage from "./pages/QuizCreationPage";
+import QuizManagementPage from "./pages/QuizManagementPage";
+import ZoomUploadPage from "./pages/ZoomUploadPage";
+import ZoomCheckPage from "./pages/ZoomCheckPage";
+import HiwiSessions from "./pages/HiwiSessions";
+import StudentSessionsCalendar from "./pages/StudentSessionsCalendar";
+import DiplomaListPage from "./pages/DiplomaListPage";
+import StudentAttendancePage from "./pages/StudentAttendancePage";
+import StudentAnnouncementsPage from "./pages/StudentAnnouncementsPage";
+import OrganizerParticipantsPage from "./pages/OrganizerParticipantsPage";
+import HiwiAnnouncements from "./pages/HiwiAnnouncements";
+import QuizLeaderboardPage from "./pages/QuizLeaderboardPage";
+import StudentQuizSessionsPage from "./pages/StudentQuizSessionsPage";
+import StudentAccountEditPage from "./pages/StudentAccountEditPage";
+import RegistrationDeadlinePage from "./pages/RegistrationDeadlinePage";
+import ArchiveEventsPage from "./pages/ArchiveEventsPage";
+import ArchiveParticipantsPage from "./pages/ArchiveParticipantsPage";
+import ArchiveOrganizerAnnouncementsPage from "./pages/ArchiveOrganizerAnnouncementsPage";
+import ArchiveAttendanceDataPage from "./pages/ArchiveAttendanceDataPage";
+import ArchiveDiplomaListPage from "./pages/ArchiveDiplomaListPage";
+import HiwiAvailabilityPage from "./pages/HiwiAvailabilityPage";
+import OrganizerHiwiAttendanceOverviewPage from "./pages/organizerHiwiAttendanceOverviewPage";
+import DiplomaSettingsPage from "./pages/DiplomaSettingsPage";
+import ApprovalEmailSettingsPage from "./pages/ApprovalEmailSettingsPage";
+
+
+
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* redirect / to /login */}
+        <Route path="/" element={<Navigate to="/homepage" replace />} />
+
+        <Route path="/homepage" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegistrationPage />} />
+        <Route path="/admin/registrations" element={<AdminRegistrationsListPage />} />
+        <Route path="/admin/registrations/:id" element={<AdminRegistrationDetailPage />} />
+        <Route path="/login/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/ohomepage" element={<OHomePage />} />
+        <Route path="/ohomepage/eventlist" element={<EventListPage />} />
+        <Route path="/ohomepage/eventdetail" element={<EventDetailPage />} />
+        <Route path="/ohomepage/sessionlist" element={<SessionListPage />} />
+        <Route path="/ohomepage/hiwilist" element={<HiWiListPage />} />
+        <Route path="/studenthomepage/businesscard" element={<BusinessCardPage />} />
+        <Route path="/ohomepage/quizlist" element={<QuizListPage />} />
+        <Route path="/studenthomepage" element={<StudentHomePage />} />
+        <Route path="/hiwihomepage" element={<HiwiHomePage />} />
+        <Route path="/hiwihomepage/statistics" element={<HiWiStatisticsPage />} />
+        <Route path="/studenthomepage/qr" element={<StudentQrPage />} />
+        <Route path="/ohomepage/announcements" element={<OrganizerAnnouncements />} />
+        <Route path="/hiwihomepage/scan" element={<HiWiQrScanPage />} />
+        <Route path="/hiwihomepage/availability" element={<HiwiAttendancePage />} />
+        <Route path="/ohomepage/attendance" element={<AttendanceData />} />
+        <Route path="/quiz/session/:sessionId" element={<QuizSubmissionPage />} />
+        <Route path="/quiz/:quizId/results" element={<QuizResultsPage />} />
+        <Route path="/quizlist" element={<QuizListPage />} />
+        <Route path="/questions" element={<QuestionManagementPage />} />
+        <Route path="/quiz/create" element={<QuizCreationPage />} />
+        <Route path="/quiz/manage" element={<QuizManagementPage />} />
+        <Route path="/ohomepage/zoom" element={<ZoomUploadPage />} />
+        <Route path="/zoom-check" element={<ZoomCheckPage />} />
+        <Route path="/hiwihomepage/sessions" element={<HiwiSessions />} />
+        <Route path="/studenthomepage/calendar" element={<StudentSessionsCalendar />} />
+        <Route path="/ohomepage/diplomas" element={<DiplomaListPage />} />
+        <Route path="/studenthomepage/attendance" element={<StudentAttendancePage />} />
+        <Route path="/studentannouncements" element={<StudentAnnouncementsPage />} />
+        <Route path="/organizer/participants" element={<OrganizerParticipantsPage />} />
+        <Route path="/hiwiannouncements" element={<HiwiAnnouncements />} />
+        <Route path="/quiz/:quizId/leaderboard" element={<QuizLeaderboardPage />} />
+        <Route path="/student/quiz-sessions" element={<StudentQuizSessionsPage />} />
+        <Route path="/student/account" element={<StudentAccountEditPage />} />
+        <Route path="/registration-deadline" element={<RegistrationDeadlinePage />} />
+        <Route path="hiwi/availability" element={<HiwiAvailabilityPage />} />
+
+        <Route path="/archive" element={<ArchiveEventsPage />} />
+        <Route path="/archive/participants" element={<ArchiveParticipantsPage />} />
+        <Route path="/archive/announcements" element={<ArchiveOrganizerAnnouncementsPage />} />
+        <Route path="/archive/attendance" element={<ArchiveAttendanceDataPage />} />
+        <Route path="/archive/diplomas" element={<ArchiveDiplomaListPage />} />
+        <Route path="ohomepage/hiwi-attendance" element={<OrganizerHiwiAttendanceOverviewPage />} />
+        <Route path="/ohomepage/diplomas/settings" element={<DiplomaSettingsPage />} />
+        <Route path="/ohomepage/approval-email" element={<ApprovalEmailSettingsPage />} />
+
+
+
+        {/*catch-all for invalid routes */}
+        <Route path="*" element={<h1>404 - Seite nicht gefunden</h1>} />
+      </Routes>
+    </BrowserRouter>
+  );
+}

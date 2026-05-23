@@ -1,0 +1,255 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { checkAuthAndRedirect } from "../utils/auth";
+import "./quiz.css";
+
+interface QuestionScore {
+  questionId: number;
+  answer: number;
+  score: number;
+}
+
+interface LeaderboardEntry {
+  rank: number;
+  participantId: number;
+  participantName: string;
+  participantEmail: string;
+  participantType: string;
+  totalScore: number;
+  questionScores: QuestionScore[];
+  submittedAt: string;
+}
+
+interface LeaderboardData {
+  students: LeaderboardEntry[];
+  teachers: LeaderboardEntry[];
+  guests: LeaderboardEntry[];
+}
+
+export default function QuizLeaderboardPage() {
+  const { quizId } = useParams();
+  const navigate = useNavigate();
+  const [leaderboard, setLeaderboard] = useState<LeaderboardData>({ students: [], teachers: [], guests: [] });
+  const [loading, setLoading] = useState(true);
+  const [downloadingCsv, setDownloadingCsv] = useState(false);
+
+  useEffect(() => {
+    if (checkAuthAndRedirect(navigate)) {
+      fetchLeaderboard();
+    }
+  }, [quizId]);
+
+  async function fetchLeaderboard() {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/quizzes/${quizId}/leaderboard`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.ok) {
+        setLeaderboard(await res.json());
+      } else {
+        alert("Fehler beim Laden des Leaderboards");
+      }
+    } catch (error) {
+      alert("Fehler: " + error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function downloadQuizResultsCsv() {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    setDownloadingCsv(true);
+    try {
+      const res = await fetch(`/api/quizzes/${quizId}/results.csv`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        throw new Error(`CSV download failed (${res.status}): ${t}`);
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `quiz_${quizId}_results.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert("CSV konnte nicht heruntergeladen werden");
+    } finally {
+      setDownloadingCsv(false);
+    }
+
+  }
+
+  if (loading) {
+    return <div className="quiz-container">Lädt...</div>;
+  }
+
+  const renderLeaderboardTable = (entries: LeaderboardEntry[], title: string, color: string) => {
+    if (entries.length === 0) return null;
+
+    return (
+      <div style={{ marginBottom: "40px" }}>
+        <h2 style={{ color, marginBottom: "20px" }}>{title}</h2>
+        <div style={{
+          backgroundColor: "white",
+          borderRadius: "12px",
+          padding: "20px",
+          boxShadow: "0 2 8px rgba(0,0,0,0.1)",
+          overflowX: "auto"
+        }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ backgroundColor: "#f5f5f5" }}>
+                <th style={{ padding: "15px", textAlign: "left", fontWeight: "bold" }}>Rang</th>
+                <th style={{ padding: "15px", textAlign: "left", fontWeight: "bold" }}>Teilnehmer</th>
+                <th style={{ padding: "15px", textAlign: "center", fontWeight: "bold" }}>Gesamtpunktzahl</th>
+                <th style={{ padding: "15px", textAlign: "center", fontWeight: "bold" }}>Fragenpunkte</th>
+                <th style={{ padding: "15px", textAlign: "left", fontWeight: "bold" }}>Abgegeben am</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((entry, index) => (
+                <tr
+                  key={entry.participantId}
+                  style={{
+                    borderBottom: "1px solid #e0e0e0",
+                    backgroundColor: index < 3 ? (
+                      index === 0 ? "#fff9c4" :
+                      index === 1 ? "#e3f2fd" :
+                      "#f1f8e9"
+                    ) : "white"
+                  }}
+                >
+                  <td style={{ padding: "15px", fontWeight: "bold", fontSize: "18px" }}>
+                    {entry.rank === 1 && "🥇"}
+                    {entry.rank === 2 && "🥈"}
+                    {entry.rank === 3 && "🥉"}
+                    {entry.rank > 3 && entry.rank}
+                  </td>
+                  <td style={{ padding: "15px" }}>
+                    <div style={{ fontWeight: "600" }}>{entry.participantName}</div>
+                    <div style={{ fontSize: "12px", color: "#666" }}>{entry.participantEmail}</div>
+                  </td>
+                  <td style={{
+                    padding: "15px",
+                    textAlign: "center",
+                    fontWeight: "bold",
+                    fontSize: "20px",
+                    color: entry.totalScore === 0 ? "#4caf50" : entry.totalScore < 10 ? "#ff9800" : "#f44336"
+                  }}>
+                    {entry.totalScore.toFixed(0)}
+                  </td>
+                  <td style={{ padding: "15px" }}>
+                    <div style={{ display: "flex", gap: "5px", flexWrap: "wrap", justifyContent: "center" }}>
+                      {entry.questionScores.map((qs, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            display: "inline-block",
+                            padding: "4px 8px",
+                            borderRadius: "4px",
+                            backgroundColor: qs.score === 0 ? "#4caf50" : qs.score <= 2 ? "#ff9800" : "#f44336",
+                            color: "white",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            minWidth: "30px",
+                            textAlign: "center"
+                          }}
+                        >
+                          {qs.score}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td style={{ padding: "15px", fontSize: "14px", color: "#666" }}>
+                    {new Date(entry.submittedAt).toLocaleString("de-DE")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="page-wrapper">
+      <header className="navbar">
+        <span className="logo">SMP 2026</span>
+        <div className="nav-right">
+          <Link to="/quizlist" className="back-btn">
+            ← Zurück zu Quizzes
+          </Link>
+          <Link to="/login" className="logout-btn">
+            Logout
+          </Link>
+        </div>
+      </header>
+      
+      <main className="container">
+        <h1>Fermi Quiz Leaderboard</h1>
+        <div style={{ display: "flex", justifyContent: "flex-end", margin: "10px 0 16px" }}>
+          <button
+            onClick={downloadQuizResultsCsv}
+            disabled={downloadingCsv}
+            style={{
+              minWidth: 180,
+              height: 42,
+              padding: "0 18px",
+              borderRadius: "8px",
+              border: "none",
+              background: "#111",
+              color: "white",
+              fontWeight: 600,
+              cursor: downloadingCsv ? "not-allowed" : "pointer",
+            }}
+          >
+            {downloadingCsv ? "CSV wird erstellt..." : "CSV herunterladen"}
+          </button>
+        </div>
+
+        {leaderboard.students.length === 0 && leaderboard.teachers.length === 0 && leaderboard.guests.length === 0 ? (
+          <p style={{ textAlign: "center", marginTop: "40px", color: "#666" }}>
+            Noch keine Teilnehmer haben abgegeben
+          </p>
+        ) : (
+          <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+            {renderLeaderboardTable(leaderboard.students, "🎓 Schüler Leaderboard", "#1976d2")}
+            {renderLeaderboardTable(leaderboard.teachers, "👨‍🏫 Lehrer Leaderboard", "#388e3c")}
+            {renderLeaderboardTable(leaderboard.guests, "👥 Gäste Leaderboard", "#f57c00")}
+
+            <div style={{
+              marginTop: "30px",
+              padding: "20px",
+              backgroundColor: "#f5f5f5",
+              borderRadius: "8px"
+            }}>
+              <h3 style={{ marginTop: 0 }}>Punktesystem</h3>
+              <ul style={{ marginBottom: 0 }}>
+                <li><strong>0 Punkte</strong> = Exakte Antwort oder sehr nah</li>
+                <li><strong>1-2 Punkte</strong> = Gute Schätzung</li>
+                <li><strong>3-7 Punkte</strong> = Weit von der richtigen Antwort</li>
+                <li><strong>8 Punkte</strong> = Sehr weit oder keine Antwort</li>
+                <li><strong>Niedrigere Gesamtpunktzahl = Besserer Rang!</strong></li>
+              </ul>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
